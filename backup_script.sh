@@ -22,22 +22,29 @@ BACKUP_NAME="${TIMESTAMP}_backup"
 
 
 perform_backup() {
-    # Perform MongoDB backup
-    mongodump --uri="${MONGODB_URI}" --gzip --archive="${BACKUP_NAME}.gz"
+    # Perform MongoDB backup directly to tar.gz file
+    mongodump --uri="${MONGODB_URI}" --out="${BACKUP_NAME}_dump"
 
-    echo "Creating backup ..."
+    echo "Creating tar.gz backup file ..."
 
-    # Upload backup to S3
-    aws s3 cp "${BACKUP_NAME}.gz" "s3://${BUCKET_NAME}/${BUCKET_DIR}/${BACKUP_NAME}.gz"
+    # Create tar.gz archive from mongodump output directory
+    tar -czvf "${BACKUP_NAME}.tar.gz" "${BACKUP_NAME}_dump"
 
-    echo "Push backup ..."
+    # Clean up mongodump output directory
+    rm -r "${BACKUP_NAME}_dump"
 
-    # Clean up local backup file after uploading to S3
-    rm "${BACKUP_NAME}.gz"
+    echo "Uploading backup archive to S3 ..."
 
-    echo "Remove backup file ..."
+    # Upload tar.gz archive to S3
+    aws s3 cp "${BACKUP_NAME}.tar.gz" "s3://${BUCKET_NAME}/${BUCKET_DIR}/${BACKUP_NAME}.tar.gz"
+
+    echo "Cleaning up local backup files ..."
+
+    # Clean up local backup files after uploading to S3
+    rm "${BACKUP_NAME}.tar.gz"
+
+    echo "Backup completed."
 }
-
 
 if [ "${INIT_BACKUP}" = true ]; then
     echo "=> Create a backup on startup"
